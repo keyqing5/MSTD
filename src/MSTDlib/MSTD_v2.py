@@ -19,89 +19,89 @@ def _domain_only_diagonal(Data,win_n,distance):
     #step1.1
     pdensity=np.zeros(Dsize)
     DEN_Dict={}
-    for ip in range(Dsize):
+    for ip in range(Dsize):    # 复杂度 n， 给定radius，算周围的density
         begin_i=ip-win_n+1
         end_i=ip+win_n-1
-        if (begin_i<=0) | (end_i>=Dsize-1):
+        if (begin_i<=0) | (end_i>=Dsize-1): #radius超出序列
             if begin_i<0:
                 begin_i=0    
             
             if end_i>Dsize-1:
                 end_i=Dsize-1     
-            pdensity[ip]=np.mean(Data[begin_i:ip+1,:][:,ip:end_i+1])
-            DEN_Dict[ip]=pdensity[ip]
-        else:
+            pdensity[ip]=np.mean(Data[begin_i:ip+1,:][:,ip:end_i+1])       #周围density的平均值
+            DEN_Dict[ip]=pdensity[ip]                             
+        else:                        #
             pdensity[ip]= pdensity[ip-1] + (-np.sum(Data[begin_i-1:ip,ip-1])-np.sum(Data[begin_i-1,ip:end_i])
-            +np.sum(Data[ip,ip:end_i+1])+ np.sum(Data[begin_i:ip,end_i]))/(win_n*win_n)
-            DEN_Dict[ip]=pdensity[ip]+np.random.random(1)/1000
+            +np.sum(Data[ip,ip:end_i+1])+ np.sum(Data[begin_i:ip,end_i]))/(win_n*win_n)                        #ip和ip-1的density减去ip-1的部分
+            DEN_Dict[ip]=pdensity[ip]+np.random.random(1)/1000                        #加个扰动？
     #step1.2
     Max_step=100
     NDP_Dict={}
     ASS_Dict={}
-    for ip in np.arange(0,Dsize):
-        for step in np.arange(0,max(ip,Dsize-ip)):
+    for ip in np.arange(0,Dsize):       # 对于每个bin          O(n^2)
+        for step in np.arange(0,max(ip,Dsize-ip)):         #从0到数据的一端（远的那端）
             if ip-step>=0:
-                up_point=pdensity[ip-step]
-                if up_point>pdensity[ip]:
+                up_point=pdensity[ip-step]          #往上数step个bin的density
+                if up_point>pdensity[ip]:           # 如果这个bin密度更大 结束
                     ASS_Dict[ip]=ip-step
                     break
-            if ip+step<=Dsize-1:
-                down_point=pdensity[ip+step]
+            if ip+step<=Dsize-1:                     #往下数step个bin的density
+                down_point=pdensity[ip+step]         # 如果这个bin密度更大 结束
                 if down_point>pdensity[ip]:
                     ASS_Dict[ip]=ip+step
                     break
-            if step>Max_step:
+            if step>Max_step:                        #都没有ip的density大超过了就自己一类
                 ASS_Dict[ip]=ip
                 break
-        NDP_Dict[ip]=step   
+        NDP_Dict[ip]=step                   #找到最近的density大一点的点 记下distance
     
     #boundaries DF
     start={}
     end={}
     center={}
-    Thr_den=np.percentile(pdensity,20)
-    point_assign={}
+    Thr_den=np.percentile(pdensity,20)              #density的5分位
+    point_assign={}                              #cluster 的结果
     for temp in DEN_Dict:
         point_assign[temp]=0
     #class_num=1
     join_num=0
     #centers=[]
-    for item in DEN_Dict:
+    for item in DEN_Dict:                       #O(n)
         den=DEN_Dict[item]
         dist=NDP_Dict[item]
-        if ((den>Thr_den) & (dist>distance)):
-            join_num=join_num+1
-            point_assign[item]=join_num
+        if ((den>Thr_den) & (dist>distance)):             # density大于阈值，距离也大于阈值  这个应该是聚类中心
+            join_num=join_num+1                           # 新一类
+            point_assign[item]=join_num                   # 存的是簇的序号
             #class_num=class_num+1
             start[join_num]=item
             end[join_num]=item
-            center[join_num]=item
+            center[join_num]=item                         # 存的是bin的index，center的具体位置
             #centers.append(item)
             ASS_Dict[item]=item
     clures=pd.DataFrame({'Start':start,'End':end,'Cen':center}, columns=['Start','End','Cen']) 
     
     old_join_num=0
     new_join_num=join_num
-    while old_join_num!=new_join_num:
+    while old_join_num!=new_join_num:                 #？？？？？？？？？？
         old_join_num=join_num
         for item in DEN_Dict:
-            if ((NDP_Dict[item]<=distance)):
-                if ASS_Dict[item]==item:
+            if ((NDP_Dict[item]<=distance)):          #如果距离小于阈值
+                if ASS_Dict[item]==item:                 #它的类就是他自己
                     continue
-                fclass=point_assign[ASS_Dict[item]]
+                fclass=point_assign[ASS_Dict[item]]   #跟它靠近的那个点的cluster的index
                 if fclass !=0:
-                    mclass= point_assign[item]
-                    if mclass == 0:
+                    mclass= point_assign[item]        #他自己的cluster的序号
+                    if mclass == 0:                   #不是聚类中心
                         temp=center[fclass]
                         if (DEN_Dict[item]>DEN_Dict[temp]/5):
-                            #判断此点是否在类别范围
-                            item_class= clures[(item>clures['Start']) & (clures['End']>item)].values
-                            if len(item_class)!=0:
+                            ##判断此点是否在类别范围====>比较两点密度，如果是大于密度五分之一的，归到这类
+                            item_class= clures[(item>clures['Start']) & (clures['End']>item)].values   
+                            if len(item_class)!=0:          #已经在boundary里面了
                                 point_assign[item]=point_assign[ASS_Dict[item_class[0][2]]]
                             else:
                                 #print item
-                                point_assign[item]=point_assign[ASS_Dict[item]]
-                                if item < clures.ix[point_assign[item],'Start']:
+                                point_assign[item]=point_assign[ASS_Dict[item]]    
+                                if item < clures.ix[point_assign[item],'Start']:          #合并到哪段
                                     clures.ix[ point_assign[item],'Start']=item 
                                 else:
                                     clures.ix[ point_assign[item], 'End']=item 
@@ -112,10 +112,10 @@ def _domain_only_diagonal(Data,win_n,distance):
     for clu in clures.index[:-1:1]:
         left=clures.loc[clu,'End']
         right=clures.loc[clu+1,'Start']
-        if (left-step>=0) & (right+step<=Dsize-1):
-            if left==right-1:
+        if (left-step>=0) & (right+step<=Dsize-1):    #bin之间有噪声点 、 超出了数据的大小（假设boundary的宽度是3）
+            if left==right-1:                         #自己一个tad
                 loca=np.argmin(pdensity[left-step:right+step])
-                newbound=left-step+loca
+                newbound=left-step+loca               #把周围的低density的bin也合进来
                 clures.loc[clu,'End']=newbound
                 clures.loc[clu+1,'Start']=newbound
     return clures

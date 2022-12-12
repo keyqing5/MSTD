@@ -11,7 +11,10 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
-from colormap import Color, Colormap
+
+import time
+import pdb
+# from colormap import Color, Colormap
 #Data=matrix_data; distance=MDHD; win_n=5
 def _domain_only_diagonal(Data,win_n,distance):
     
@@ -33,7 +36,7 @@ def _domain_only_diagonal(Data,win_n,distance):
         else:                        #
             pdensity[ip]= pdensity[ip-1] + (-np.sum(Data[begin_i-1:ip,ip-1])-np.sum(Data[begin_i-1,ip:end_i])
             +np.sum(Data[ip,ip:end_i+1])+ np.sum(Data[begin_i:ip,end_i]))/(win_n*win_n)                        #ip和ip-1的density减去ip-1的部分
-            DEN_Dict[ip]=pdensity[ip]+np.random.random(1)/1000                        #加个扰动？
+            DEN_Dict[ip]=pdensity[ip]#+np.random.random(1)/1000                        #加个扰动？
     #step1.2
     Max_step=100
     NDP_Dict={}
@@ -54,7 +57,6 @@ def _domain_only_diagonal(Data,win_n,distance):
                 ASS_Dict[ip]=ip
                 break
         NDP_Dict[ip]=step                   #找到最近的density大一点的点 记下distance
-    
     #boundaries DF
     start={}
     end={}
@@ -78,8 +80,8 @@ def _domain_only_diagonal(Data,win_n,distance):
             center[join_num]=item                         # 存的是bin的index，center的具体位置
             #centers.append(item)
             ASS_Dict[item]=item
-    clures=pd.DataFrame({'Start':start,'End':end,'Cen':center}, columns=['Start','End','Cen']) 
-    
+    clures=pd.DataFrame({'Start':start,'End':end,'Cen':center}, columns=['Start','End','Cen'])
+
     old_join_num=0
     new_join_num=join_num
     while old_join_num!=new_join_num:                 #？？？？？？？？？？
@@ -107,7 +109,7 @@ def _domain_only_diagonal(Data,win_n,distance):
                                     clures.ix[ point_assign[item], 'End']=item 
                             join_num=join_num+1
         new_join_num=join_num 
-    
+
     step=3
     for clu in clures.index[:-1:1]:
         left=clures.loc[clu,'End']
@@ -118,6 +120,7 @@ def _domain_only_diagonal(Data,win_n,distance):
                 newbound=left-step+loca               #把周围的低density的bin也合进来
                 clures.loc[clu,'End']=newbound
                 clures.loc[clu+1,'Start']=newbound
+    print(clures)
     return clures
 
 #Data=matrix_data
@@ -708,7 +711,7 @@ def MSTD(Matrix_file,Output_file,MDHD=5,symmetry=1,window=5,visualization=0):
                 _show_chic_clusterresult3(boundaries,matrix_data,colors)
                 #show_chic_clusterresult(centers,bound,matrix_data)
                 
-def MSTD2(Matrix_file,Output_file,MDHD=5,symmetry=1,window=5,visualization=1):
+def MSTD2(Matrix_file,Output_file,MDHD=5,symmetry=1,window=5,visualization=0):
     """
     @parameters 
     Matrix_file: Input file address, the format of the file is triple for promoter capture Hi-C maps, the format of the file is
@@ -779,15 +782,23 @@ def MSTD2(Matrix_file,Output_file,MDHD=5,symmetry=1,window=5,visualization=1):
 def example(symmetry=1):
     #Dir=os.getcwd()
     #Dir=example_add
-    Dir='./src/MSTDlib'
+    # Dir='./src/MSTDlib'
+    Dir = 'D:\\experiment\\MSTD\\src\\MSTDlib'
     #Dir=MSTDlib_test_v2.
     
     print("# 1. symmetry Hi-C") 
     print("# 2. asymmetry capture Hi-C")
     if symmetry==1:
-        Matrix_file=Dir+'\\data\\cortex_chr6_2350-2500_HiC'
-        Output_file=Dir+'\\data\\cortex_chr6_output'
-        MSTD(Matrix_file,Output_file,MDHD=10,symmetry=1,window=10,visualization=1)
+        # Matrix_file=Dir+'\\data\\cortex_chr6_2350-2500_HiC'
+        # Matrix_file = "D:\\experiment\\tadcaller\\simulate_matrix.txt"
+        Matrix_file = "D:\\experiment\\hic data\\chr22\\chr22_KR_25kb_matrix.txt"
+        # Output_file=Dir+'\\data\\cortex_chr6_output'
+        Output_file= Dir+'\\data\\chr19_421_820_ouput'
+        start =time.time()
+        MSTD(Matrix_file,Output_file,MDHD=10,symmetry=1,window=10,visualization=0)
+        end = time.time()
+        running_time = end-start
+        print("running time: "+ str(running_time)+" s")
     elif symmetry==2:
         #example two
         Matrix_file=Dir+'\\data\\nB_chr19_480-700_CHiC'
@@ -796,7 +807,7 @@ def example(symmetry=1):
     return 0
 
 
-
+example()
 
 
 
